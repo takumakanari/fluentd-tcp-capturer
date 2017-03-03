@@ -1,0 +1,64 @@
+#!/usr/bin/env ruby
+require "optparse"
+require "capture"
+require "logger"
+
+options = {
+  device: "eth0",
+  port: 24224,
+  forward_host: nil,
+  forward_port: 0,
+  output_file_path: nil
+}
+
+logger = Logger.new(STDOUT)
+logger.level = Logger::INFO
+
+
+OptionParser.new do |opts|
+  opts.on("-d DEVICE", "--device DEVICE", "Device name [default: eth0]") do |v|
+    options[:device] = v
+  end
+  opts.on("-p PORT", "--port PORT", "Fluentd port to capture [default: 24224]") do |v|
+    options[:port] = v.to_i
+  end
+  opts.on("--forward-host HOST", "If set, message will be forwarded to other Fluentd host") do |v|
+    options[:forward_host] = v
+  end
+  opts.on("--forward-port PORT", "Fluentd port to forward message (used when --forward-host is set)") do |v|
+    options[:forward_port] = v.to_i
+  end
+  opts.on("--debug", "Set loglevel DEBUG") do |v|
+    logger.level = Logger::DEBUG
+  end
+  # TODO
+  # opts.on("-o VALUE", "--output VALUE", "Output file path to dump message from Fluentd (used when --forward-host is set)") do |v|
+  #   options[:output_file_path] = v
+  # end
+  # TODO max_bytes, timeout
+  opts.parse!(ARGV)
+end
+
+
+exec = Capturing::Exec.new(device: options[:device], port: options[:port], logger: logger)
+runner = if options[:forward_host].nil?
+  Capturing::PrintRunner.new(exec, writer: STDOUT)
+else
+  # if options[:output_file_path].nil?
+  #   STDERR.write "-o/--output must be set"
+  # end
+  Capturing::ForwardRunner.new(exec, host: options[:forward_host], port: options[:forward_port],
+                               output: options[:output_file_path])
+end
+
+
+exec.logger.info "Start capturing #{options[:device]}/port=#{options[:port]}"
+begin
+  runner.run!
+rescue Interrupt
+  runner.destroy!
+  exit 0
+rescue => e
+  exec.logger.error e
+  exit 1
+end
