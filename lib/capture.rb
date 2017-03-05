@@ -41,7 +41,7 @@ module Capturing
       super e
       @writer = writer
       @unpacker = Fluent::Engine.msgpack_factory.unpacker
-      @time_formatter = Fluent::TimeFormatter.new("%Y-%m-%d %H:%M:%S %z", false, nil) # TODO support format
+      @time_formatter = Fluent::TimeFormatter.new("%Y-%m-%d %H:%M:%S %z", true, nil) # TODO support format
     end
 
     def on_packet(data)
