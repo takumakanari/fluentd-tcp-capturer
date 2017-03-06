@@ -7,8 +7,7 @@ options = {
   device: "eth0",
   port: 24224,
   forward_host: nil,
-  forward_port: 0,
-  output_file_path: nil
+  forward_port: 0
 }
 
 logger = Logger.new(STDOUT)
@@ -31,10 +30,6 @@ OptionParser.new do |opts|
   opts.on("--debug", "Set loglevel DEBUG") do |v|
     logger.level = Logger::DEBUG
   end
-  # TODO
-  # opts.on("-o VALUE", "--output VALUE", "Output file path to dump message from Fluentd (used when --forward-host is set)") do |v|
-  #   options[:output_file_path] = v
-  # end
   # TODO max_bytes, timeout
   opts.parse!(ARGV)
 end
@@ -44,11 +39,7 @@ exec = Capturing::Exec.new(device: options[:device], port: options[:port], logge
 runner = if options[:forward_host].nil?
   Capturing::PrintRunner.new(exec, writer: STDOUT)
 else
-  # if options[:output_file_path].nil?
-  #   STDERR.write "-o/--output must be set"
-  # end
-  Capturing::ForwardRunner.new(exec, host: options[:forward_host], port: options[:forward_port],
-                               output: options[:output_file_path])
+  Capturing::ForwardRunner.new(exec, host: options[:forward_host], port: options[:forward_port], output: nil)
 end
 
 
