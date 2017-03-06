@@ -123,7 +123,7 @@ module Capturing
 
     DEFAULT_LOGGER ||= Logger.new(STDOUT)
 
-    def initialize(device: "eth0", max_bytes: 1460, timeout: 1000, port: 24224, logger: nil)
+    def initialize(device: "eth0", max_bytes: 1048576, timeout: 1000, port: 24224, logger: nil)
       @device = device
       @max_bytes = max_bytes
       @timeout = timeout
