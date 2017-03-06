@@ -7,7 +7,8 @@ options = {
   device: "eth0",
   port: 24224,
   forward_host: nil,
-  forward_port: 0
+  forward_port: 0,
+  use_embed_fluentd: false
 }
 
 logger = Logger.new(STDOUT)
@@ -30,6 +31,9 @@ OptionParser.new do |opts|
   opts.on("--debug", "Set loglevel DEBUG") do |v|
     logger.level = Logger::DEBUG
   end
+  opts.on("--use-embed-fluentd", "If set, boot up embed Fluentd for debugging") do |v| # TODO fix
+    options[:use_embed_fluentd] = true
+  end
   # TODO max_bytes, timeout
   opts.parse!(ARGV)
 end
@@ -39,7 +43,8 @@ exec = Capturing::Exec.new(device: options[:device], port: options[:port], logge
 runner = if options[:forward_host].nil?
   Capturing::PrintRunner.new(exec, writer: STDOUT)
 else
-  Capturing::ForwardRunner.new(exec, host: options[:forward_host], port: options[:forward_port], output: nil)
+  Capturing::ForwardRunner.new(exec, host: options[:forward_host], port: options[:forward_port],
+                               use_embed_fluentd: options[:use_embed_fluentd])
 end
 
 
