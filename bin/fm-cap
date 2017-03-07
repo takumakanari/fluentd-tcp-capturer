@@ -8,7 +8,7 @@ options = {
   port: 24224,
   forward_host: nil,
   forward_port: 0,
-  use_embed_fluentd: false
+  fluentd_config: nil
 }
 
 logger = Logger.new(STDOUT)
@@ -31,11 +31,21 @@ OptionParser.new do |opts|
   opts.on("--debug", "Set loglevel DEBUG") do |v|
     logger.level = Logger::DEBUG
   end
-  opts.on("--use-embed-fluentd", "If set, boot up embed Fluentd for debugging") do |v| # TODO fix
-    options[:use_embed_fluentd] = true
+  opts.on("--fluentd-config PATH", "Config path for embed Fluentd (must be used with --forward-host/--forward-port)") do |v|
+    options[:fluentd_config] = v
   end
   # TODO max_bytes, timeout
   opts.parse!(ARGV)
+  
+  if !options[:fluentd_config].nil? && options[:forward_host].nil?
+    STDERR.write "--fluentd-config must be used with --forward-host/--forward-port\n"
+    exit 1
+  end
+
+  if !options[:forward_host].nil? && options[:forward_port] <= 0
+    STDERR.write "--forward-host must be used with --forward-port\n"
+    exit 1
+  end
 end
 
 
@@ -44,7 +54,7 @@ runner = if options[:forward_host].nil?
   Capturing::PrintRunner.new(exec, writer: STDOUT)
 else
   Capturing::ForwardRunner.new(exec, host: options[:forward_host], port: options[:forward_port],
-                               use_embed_fluentd: options[:use_embed_fluentd])
+                               fluentd_config: options[:fluentd_config])
 end
 
 
