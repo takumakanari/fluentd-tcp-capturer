@@ -46,9 +46,22 @@ module Capturing
 
     def on_packet(data)
       @unpacker.feed_each(data) do |msg|
-        tag, entries = msg
-        entries.each do |e|
-          @writer.write(format_message(tag, e))
+        tag = msg[0]
+        entries = msg[1]
+        case entries
+        when String
+          option = msg[2]
+          size = (option && option["size"]) || 0
+          es_class = (option && option["compressed"] == "gzip") ? Fluent::CompressedMessagePackEventStream : Fluent::MessagePackEventStream
+          es_class.new(entries, nil, size.to_i).each do |time, record|
+            @writer.write(format_message(tag, [time, record]))
+          end
+        when Array
+          entries.each do |e|
+            @writer.write(format_message(tag, e))
+          end
+        else
+          raise "Unsuooprted entry format '#{entry.class}'" # TODO
         end
       end
     end
@@ -63,21 +76,20 @@ module Capturing
     require "socket"
     require "threadpool"
 
-    def initialize(e, host:, port:, output:)
+    def initialize(e, host:, port:, fluentd_config: nil)
       super e
       @host = host
       @port = port
-      @output = output
-      @use_embed_fluentd = false # TODO support this mode
+      @fluentd_config = fluentd_config
 
-      start_embed_fluentd if @use_embed_fluentd
+      start_embed_fluentd(fluentd_config) unless fluentd_config.nil?
       @sock = new_socket_to_forward
       @messaging_thread_pool = ThreadPool.new(4) # TODO configurable
     end
 
     def on_packet(data)
       @messaging_thread_pool.process{ @sock.write data }
-      @exec.logger.info "Forwarded message to #{@host}:#{@port}"
+      @exec.logger.info "Forwarded message to #{@host}:#{@port}" unless @use_embed_fluentd
     end
 
     private
@@ -93,26 +105,15 @@ module Capturing
       end
     end
 
-    def start_embed_fluentd
+    def start_embed_fluentd(config_path)
+      @exec.logger.info "Starting embed Fluentd config_path='#{config_path}'"
       Thread.start {
-        Dir.mktmpdir do |dir|
-          conf = File.join(dir, "fluent.conf")
-          output_file = File.join(dir, 'output')
-          @exec.logger.info "Output message to '#{output_file}'" # TODO set file path
-          File.write(conf, <<-EOF)
-            <source>
-              @type forward
-              port #{@port}
-            </source>
-            <match **>
-              @type file
-              path #{@output}
-              buffer_type memory
-              append true
-              flush_interval 0s
-            </match>
-          EOF
-          FluentdEmbed.new(conf).boot
+        begin
+          FluentdEmbed.new(config_path).boot
+        rescue => e
+          # TODO stop immediately
+          @exec.logger.error "Failed to start embed Fluentd (#{e.message})"
+          raise e
         end
       }
     end
