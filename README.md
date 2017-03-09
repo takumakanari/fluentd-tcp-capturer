@@ -34,7 +34,6 @@ Usage: fm-cap [options]
 This mode captures tcp packet to Fluentd, dump it in the terminal.
 
 ```shell
-# TODO
 $ sudo fm-cap
 I, [2017-03-03T22:41:31.141436 #14088]  INFO -- : Start capturing lo0/port=24224
 2017-03-03 13:41:34 +0000 | tag=test.20170303224134 msg={"name"=>"John", "age"=>15}
